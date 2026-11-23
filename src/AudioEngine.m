@@ -185,11 +185,12 @@ static const int kLog2N   = 10;
     
     BOOL hasPermission = CGPreflightScreenCaptureAccess();
     if (!hasPermission) {
+        CGRequestScreenCaptureAccess();
         // Listen passively in background: as soon as user enables permission in System Settings, auto-start!
         __weak typeof(self) weakSelf = self;
-        self.permissionCheckTimer = [NSTimer scheduledTimerWithTimeInterval:2.5 repeats:YES block:^(NSTimer * _Nonnull timer) {
+        self.permissionCheckTimer = [NSTimer scheduledTimerWithTimeInterval:2.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
             if (CGPreflightScreenCaptureAccess()) {
-                NSLog(@"✅ System audio recording permission detected! Switching to pure internal capture...");
+                NSLog(@"✅ System audio/video recording permission detected! Switching to live capture...");
                 [timer invalidate];
                 weakSelf.permissionCheckTimer = nil;
                 if (weakSelf.demoTimer) {
@@ -204,36 +205,63 @@ static const int kLog2N   = 10;
     __weak typeof(self) weakSelf = self;
     [SCShareableContent getShareableContentWithCompletionHandler:^(SCShareableContent * _Nullable shareableContent, NSError * _Nullable error) {
         if (error || !shareableContent || shareableContent.displays.count == 0) {
-            NSLog(@"ScreenCaptureKit unavailable (%@). Falling back to internal music tempo rhythm.", error);
+            NSLog(@"ScreenCaptureKit unavailable (%@). Falling back to internal rhythm & polling permission...", error);
             dispatch_async(dispatch_get_main_queue(), ^{
                 [weakSelf startDemoSimulator];
                 weakSelf.isRunning = YES;
+                
+                // Prompt user to grant permission
+                CGRequestScreenCaptureAccess();
+                
+                if (!weakSelf.permissionCheckTimer) {
+                    weakSelf.permissionCheckTimer = [NSTimer scheduledTimerWithTimeInterval:2.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
+                        if (CGPreflightScreenCaptureAccess()) {
+                            NSLog(@"✅ System audio/video permission granted! Starting live capture...");
+                            [timer invalidate];
+                            weakSelf.permissionCheckTimer = nil;
+                            [weakSelf startInternalSystemAudioCapture];
+                        }
+                    }];
+                }
             });
             return;
         }
         
         SCDisplay *display = shareableContent.displays.firstObject;
-        SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
+        
+        // CRITICAL: Exclude Decksi's own border glow windows so ScreenCaptureKit captures the actual desktop/video!
+        NSMutableArray<SCWindow *> *excludedWindows = [NSMutableArray array];
+        NSString *myBundleId = [[NSBundle mainBundle] bundleIdentifier] ?: @"in.decksi.mac";
+        for (SCWindow *w in shareableContent.windows) {
+            if ([w.owningApplication.bundleIdentifier isEqualToString:myBundleId] ||
+                [w.owningApplication.applicationName isEqualToString:@"Decksi"]) {
+                [excludedWindows addObject:w];
+            }
+        }
+        
+        SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:excludedWindows];
         
         SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
         config.capturesAudio = YES;
         config.excludesCurrentProcessAudio = YES;
         config.sampleRate = 44100;
         config.channelCount = 2;
-        // High-performance downscaled 64x36 video stream for Real-Time Video Ambilight Sync
-        config.width = 64;
-        config.height = 36;
+        // High-performance downscaled 160x90 video stream (16:9) for Real-Time Video Ambilight Sync
+        config.width = 160;
+        config.height = 90;
         config.pixelFormat = kCVPixelFormatType_32BGRA;
         config.minimumFrameInterval = CMTimeMake(1, 30);
         config.showsCursor = NO;
         
-        NSError *streamErr = nil;
+        NSError *videoErr = nil;
+        NSError *audioErr = nil;
         SCStream *stream = [[SCStream alloc] initWithFilter:filter configuration:config delegate:weakSelf];
-        [stream addStreamOutput:weakSelf type:SCStreamOutputTypeScreen sampleHandlerQueue:weakSelf.audioQueue error:nil];
-        [stream addStreamOutput:weakSelf type:SCStreamOutputTypeAudio sampleHandlerQueue:weakSelf.audioQueue error:&streamErr];
+        [stream addStreamOutput:weakSelf type:SCStreamOutputTypeScreen sampleHandlerQueue:weakSelf.audioQueue error:&videoErr];
+        [stream addStreamOutput:weakSelf type:SCStreamOutputTypeAudio sampleHandlerQueue:weakSelf.audioQueue error:&audioErr];
         
-        if (streamErr) {
-            NSLog(@"Failed to add audio stream output: %@", streamErr);
+        if (videoErr) NSLog(@"⚠️ ScreenCaptureKit video output warning: %@", videoErr);
+        if (audioErr) {
+            NSLog(@"Failed to add audio stream output: %@", audioErr);
             dispatch_async(dispatch_get_main_queue(), ^{
                 [weakSelf startDemoSimulator];
                 weakSelf.isRunning = YES;

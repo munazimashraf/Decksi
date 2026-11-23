@@ -230,8 +230,8 @@
     [root addSublayer:_leftGlow];
     
     _rightGlow = [CAGradientLayer layer];
-    _rightGlow.startPoint = CGPointMake(0.5, 0.0);
-    _rightGlow.endPoint = CGPointMake(0.5, 1.0);
+    _rightGlow.startPoint = CGPointMake(0.5, 1.0);
+    _rightGlow.endPoint = CGPointMake(0.5, 0.0);
     _rightMask = [CAGradientLayer layer];
     _rightMask.startPoint = CGPointMake(1.0, 0.5);
     _rightMask.endPoint = CGPointMake(0.0, 0.5);

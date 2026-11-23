@@ -39,8 +39,8 @@ clang -O3 -fobjc-arc \
     src/VideoAmbilightEngine.m \
     -o "${MACOS_DIR}/${APP_NAME}"
 
-# Consistent ad-hoc code sign for macOS Gatekeeper and TCC permissions
-codesign --force --deep --sign - --identifier "in.decksi.mac" "${BUNDLE_DIR}" 2>/dev/null || true
+# Consistent ad-hoc code sign with stable designated requirement for macOS TCC
+codesign --force --deep --sign - --identifier "in.decksi.mac" -r='designated => identifier "in.decksi.mac"' "${BUNDLE_DIR}" 2>/dev/null || true
 
 echo "✅ Build completed successfully!"
 echo "📦 Application located at: ${BUNDLE_DIR}"

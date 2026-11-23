@@ -84,20 +84,15 @@ typedef struct {
 static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost) {
     CGFloat luma = 0.299 * (*r) + 0.587 * (*g) + 0.114 * (*b);
     
-    // Saturation enhancement
+    // Saturation enhancement for rich film ambiance
     *r = luma + (*r - luma) * satBoost;
     *g = luma + (*g - luma) * satBoost;
     *b = luma + (*b - luma) * satBoost;
     
-    // Gamma curve for rich luminous ambiance
-    if (luma > 0.01) {
-        *r = powf(fmax(0.0, fmin(1.0, *r)), 0.85);
-        *g = powf(fmax(0.0, fmin(1.0, *g)), 0.85);
-        *b = powf(fmax(0.0, fmin(1.0, *b)), 0.85);
-    }
-    *r = fmax(0.0, fmin(1.0, *r));
-    *g = fmax(0.0, fmin(1.0, *g));
-    *b = fmax(0.0, fmin(1.0, *b));
+    // Ambient floor so dark movie scenes radiate subtle lighting
+    *r = fmax(0.03, fmin(1.0, *r));
+    *g = fmax(0.03, fmin(1.0, *g));
+    *b = fmax(0.03, fmin(1.0, *b));
 }
 
 - (void)processVideoPixelBuffer:(CVPixelBufferRef)pixelBuffer {
@@ -118,18 +113,20 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
     _hasActiveVideo = YES;
     CGFloat sat = [Settings sharedSettings].videoSaturationBoost ?: self.saturationBoost;
     
-    // 1. Intelligent Letterbox & Pillarbox Detection (Skip black bars in movies)
+    // 1. Intelligent Letterbox & Black Bar Detection (2.39:1 / 21:9 Cinemascope support)
     size_t effectiveTopY = 1;
-    size_t maxScanY = height / 4;
+    size_t maxScanY = (size_t)(height * 0.35); // Check up to 35% from top
     for (size_t y = 0; y < maxScanY; y++) {
         CGFloat rowLuma = 0.0;
-        for (size_t x = width / 4; x < 3 * width / 4; x += 4) {
+        int count = 0;
+        for (size_t x = width * 0.2; x < width * 0.8; x += 4) {
             uint8_t *px = base + (y * bytesPerRow) + (x * 4);
             rowLuma += (0.114 * px[0] + 0.587 * px[1] + 0.299 * px[2]) / 255.0;
+            count++;
         }
-        rowLuma /= (width / 8);
-        if (rowLuma > 0.035) {
-            effectiveTopY = y;
+        if (count > 0) rowLuma /= count;
+        if (rowLuma > 0.025) {
+            effectiveTopY = (y + 3 < height) ? (y + 3) : y; // Step into the picture
             break;
         }
     }
@@ -137,16 +134,21 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
     size_t effectiveBottomY = height - 2;
     for (size_t y = height - 1; y > height - maxScanY; y--) {
         CGFloat rowLuma = 0.0;
-        for (size_t x = width / 4; x < 3 * width / 4; x += 4) {
+        int count = 0;
+        for (size_t x = width * 0.2; x < width * 0.8; x += 4) {
             uint8_t *px = base + (y * bytesPerRow) + (x * 4);
             rowLuma += (0.114 * px[0] + 0.587 * px[1] + 0.299 * px[2]) / 255.0;
+            count++;
         }
-        rowLuma /= (width / 8);
-        if (rowLuma > 0.035) {
-            effectiveBottomY = y;
+        if (count > 0) rowLuma /= count;
+        if (rowLuma > 0.025) {
+            effectiveBottomY = (y > 3) ? (y - 3) : y; // Step into the picture
             break;
         }
     }
+    
+    size_t activeHeight = (effectiveBottomY > effectiveTopY) ? (effectiveBottomY - effectiveTopY) : height;
+    size_t sampleDepth = 6; // Deep sampling into video scene
     
     // 2. Sample Top Edge (8 Zones)
     size_t zoneW = width / NUM_TOP_ZONES;
@@ -154,7 +156,7 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
         size_t startX = z * zoneW;
         CGFloat sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
-        for (size_t dy = 0; dy < 3 && (effectiveTopY + dy) < height; dy++) {
+        for (size_t dy = 0; dy < sampleDepth && (effectiveTopY + dy) < height; dy++) {
             for (size_t dx = 0; dx < zoneW; dx += 2) {
                 uint8_t *px = base + ((effectiveTopY + dy) * bytesPerRow) + ((startX + dx) * 4);
                 sumB += px[0] / 255.0;
@@ -175,7 +177,7 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
         size_t startX = z * zoneW;
         CGFloat sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
-        for (size_t dy = 0; dy < 3 && (effectiveBottomY >= dy); dy++) {
+        for (size_t dy = 0; dy < sampleDepth && (effectiveBottomY >= dy); dy++) {
             for (size_t dx = 0; dx < zoneW; dx += 2) {
                 uint8_t *px = base + ((effectiveBottomY - dy) * bytesPerRow) + ((startX + dx) * 4);
                 sumB += px[0] / 255.0;
@@ -191,14 +193,14 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
         }
     }
     
-    // 4. Sample Left Edge (6 Zones)
-    size_t zoneH = height / NUM_SIDE_ZONES;
+    // 4. Sample Left Edge (6 Zones within Active Video Area)
+    size_t zoneH = activeHeight / NUM_SIDE_ZONES;
     for (int z = 0; z < NUM_SIDE_ZONES; z++) {
-        size_t startY = z * zoneH;
+        size_t startY = effectiveTopY + (z * zoneH);
         CGFloat sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
         for (size_t dy = 0; dy < zoneH; dy += 2) {
-            for (size_t dx = 0; dx < 3 && dx < width; dx++) {
+            for (size_t dx = 1; dx < 8 && dx < width; dx++) {
                 uint8_t *px = base + ((startY + dy) * bytesPerRow) + (dx * 4);
                 sumB += px[0] / 255.0;
                 sumG += px[1] / 255.0;
@@ -213,13 +215,13 @@ static inline void BoostRGB(CGFloat *r, CGFloat *g, CGFloat *b, CGFloat satBoost
         }
     }
     
-    // 5. Sample Right Edge (6 Zones)
+    // 5. Sample Right Edge (6 Zones within Active Video Area)
     for (int z = 0; z < NUM_SIDE_ZONES; z++) {
-        size_t startY = z * zoneH;
+        size_t startY = effectiveTopY + (z * zoneH);
         CGFloat sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
         for (size_t dy = 0; dy < zoneH; dy += 2) {
-            for (size_t dx = 0; dx < 3 && (width - 1 - dx) < width; dx++) {
+            for (size_t dx = 1; dx < 8 && (width - 1 - dx) < width; dx++) {
                 uint8_t *px = base + ((startY + dy) * bytesPerRow) + ((width - 1 - dx) * 4);
                 sumB += px[0] / 255.0;
                 sumG += px[1] / 255.0;
