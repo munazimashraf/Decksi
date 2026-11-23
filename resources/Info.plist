@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>Decksi</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>in.decksi.mac</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Decksi</string>
+    <key>CFBundleDisplayName</key>
+    <string>Decksi</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Decksi taps your Mac's internal audio output directly to synchronize screen edge lighting with your music without using the microphone.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Decksi queries Apple Music and Spotify to synchronize edge lighting colors and lyrics with your music tracks.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Optional microphone input (Decksi defaults to native internal system audio without microphone).</string>
+</dict>
+</plist>
