@@ -6,6 +6,7 @@
 #import "NowPlayingHUD.h"
 #import "ParticleEngine.h"
 #import "LyricsManager.h"
+#import "VideoAmbilightEngine.h"
 #import <CoreGraphics/CoreGraphics.h>
 
 @interface MenuBarController () <NSWindowDelegate>
@@ -16,6 +17,7 @@
 @property (nonatomic, strong) NSMenuItem *trackInfoItem;
 @property (nonatomic, strong) NSMenuItem *toggleItem;
 @property (nonatomic, strong) NSMenuItem *blackoutItem;
+@property (nonatomic, strong) NSMenuItem *videoSyncItem;
 
 // Preferences HUD Window
 @property (nonatomic, strong) NSWindow *prefsWindow;
@@ -29,6 +31,7 @@
 @property (nonatomic, strong) NSTextField *sensitivityLabel;
 @property (nonatomic, strong) NSTextField *reactivityLabel;
 
+@property (nonatomic, strong) NSButton *videoSyncCheck;
 @property (nonatomic, strong) NSButton *blackoutCheck;
 @property (nonatomic, strong) NSButton *lyricsCheck;
 @property (nonatomic, strong) NSButton *particlesCheck;
@@ -130,6 +133,13 @@
     [self.toggleItem setTarget:self];
     [menu addItem:self.toggleItem];
     
+    // 4b. Cinema Video Ambilight Toggle (Cmd + Shift + V)
+    NSString *videoTitle = (s.videoLightSyncEnabled || s.preset == LightingPresetVideoAmbilight) ? @"Turn OFF Cinema Video Ambilight" : @"🎬 Turn ON Cinema Video Ambilight (Screen Sync)";
+    self.videoSyncItem = [[NSMenuItem alloc] initWithTitle:videoTitle action:@selector(toggleVideoSync:) keyEquivalent:@"v"];
+    [self.videoSyncItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
+    [self.videoSyncItem setTarget:self];
+    [menu addItem:self.videoSyncItem];
+    
     [menu addItem:[NSMenuItem separatorItem]];
     
     // 5. Lyrics Display Styles Submenu
@@ -184,7 +194,8 @@
         @"🧪 Toxic Matrix (Acid Lime & Emerald)",
         @"🌴 Synthwave Sunset (80s Purple & Peach)",
         @"🎵 Dynamic Music Sync (Spotify/Apple Music)",
-        @"⚪ Pure Hyper-White (Clean Halo)"
+        @"⚪ Pure Hyper-White (Clean Halo)",
+        @"🎬 Cinema Ambilight: Video Screen Light Sync"
     ];
     for (NSInteger i = 0; i < presetNames.count; i++) {
         NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:presetNames[i] action:@selector(selectPreset:) keyEquivalent:@""];
@@ -199,6 +210,11 @@
     // 8. Visual FX Submenu
     NSMenuItem *fxItem = [[NSMenuItem alloc] initWithTitle:@"Visual FX Modifiers" action:nil keyEquivalent:@""];
     NSMenu *fxMenu = [[NSMenu alloc] initWithTitle:@"Visual FX"];
+    
+    NSMenuItem *itemVideoSync = [[NSMenuItem alloc] initWithTitle:@"🎬 Cinema Video Ambilight (Screen Sync)" action:@selector(toggleVideoSync:) keyEquivalent:@""];
+    itemVideoSync.target = self;
+    itemVideoSync.state = (s.videoLightSyncEnabled || s.preset == LightingPresetVideoAmbilight) ? NSControlStateValueOn : NSControlStateValueOff;
+    [fxMenu addItem:itemVideoSync];
     
     NSMenuItem *itemWaves = [[NSMenuItem alloc] initWithTitle:@"🌊 Equalizer Wave Ripples" action:@selector(toggleWaves:) keyEquivalent:@""];
     itemWaves.target = self;
@@ -311,7 +327,20 @@
 
 - (void)selectPreset:(NSMenuItem *)sender {
     [Settings sharedSettings].preset = (LightingPreset)sender.tag;
+    if ([Settings sharedSettings].preset == LightingPresetVideoAmbilight) {
+        [Settings sharedSettings].videoLightSyncEnabled = YES;
+    }
     [[Settings sharedSettings] saveSettings];
+    [self rebuildMenu];
+}
+
+- (void)toggleVideoSync:(id)sender {
+    Settings *s = [Settings sharedSettings];
+    s.videoLightSyncEnabled = !s.videoLightSyncEnabled;
+    if (s.videoLightSyncEnabled) {
+        s.preset = LightingPresetVideoAmbilight;
+    }
+    [s saveSettings];
     [self rebuildMenu];
 }
 
@@ -518,6 +547,11 @@
     self.hudCheck.frame = NSMakeRect(260, y, 220, 20);
     [contentView addSubview:self.hudCheck];
     
+    y -= 26;
+    self.videoSyncCheck = [self makeCheckBoxWithTitle:@"🎬 Cinema Video Ambilight Sync" state:s.videoLightSyncEnabled action:@selector(videoSyncCheckToggled:)];
+    self.videoSyncCheck.frame = NSMakeRect(24, y, 240, 20);
+    [contentView addSubview:self.videoSyncCheck];
+    
     y -= 44;
     // Real-time Audio Spectrum & Beat VU Meters
     NSTextField *vuLabel = [self makeLabelWithText:@"Live Music Spectrum:" bold:YES size:12];
@@ -656,6 +690,16 @@
 - (void)hudCheckToggled:(NSButton *)sender {
     [Settings sharedSettings].nowPlayingHUDEnabled = (sender.state == NSControlStateValueOn);
     [[Settings sharedSettings] saveSettings];
+    [self rebuildMenu];
+}
+
+- (void)videoSyncCheckToggled:(NSButton *)sender {
+    Settings *s = [Settings sharedSettings];
+    s.videoLightSyncEnabled = (sender.state == NSControlStateValueOn);
+    if (s.videoLightSyncEnabled) {
+        s.preset = LightingPresetVideoAmbilight;
+    }
+    [s saveSettings];
     [self rebuildMenu];
 }
 

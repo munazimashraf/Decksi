@@ -1,5 +1,6 @@
 #import "AudioEngine.h"
 #import "Settings.h"
+#import "VideoAmbilightEngine.h"
 #import <Accelerate/Accelerate.h>
 #import <CoreMedia/CoreMedia.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
@@ -219,10 +220,12 @@ static const int kLog2N   = 10;
         config.excludesCurrentProcessAudio = YES;
         config.sampleRate = 44100;
         config.channelCount = 2;
-        // Audio-only optimization: minimal 16x16 video dimension to consume zero GPU/video memory
-        config.width = 16;
-        config.height = 16;
-        config.minimumFrameInterval = CMTimeMake(1, 1);
+        // High-performance downscaled 64x36 video stream for Real-Time Video Ambilight Sync
+        config.width = 64;
+        config.height = 36;
+        config.pixelFormat = kCVPixelFormatType_32BGRA;
+        config.minimumFrameInterval = CMTimeMake(1, 30);
+        config.showsCursor = NO;
         
         NSError *streamErr = nil;
         SCStream *stream = [[SCStream alloc] initWithFilter:filter configuration:config delegate:weakSelf];
@@ -268,7 +271,10 @@ static const int kLog2N   = 10;
 
 - (void)stream:(SCStream *)stream didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer ofType:(SCStreamOutputType)type {
     if (type == SCStreamOutputTypeScreen) {
-        // Discard dummy video frame with zero processing
+        CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+        if (pixelBuffer) {
+            [[VideoAmbilightEngine sharedEngine] processVideoPixelBuffer:pixelBuffer];
+        }
         return;
     }
     if (type != SCStreamOutputTypeAudio) return;

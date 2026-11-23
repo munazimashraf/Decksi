@@ -36,6 +36,7 @@ clang -O3 -fobjc-arc \
     src/ParticleEngine.m \
     src/NowPlayingHUD.m \
     src/LyricsManager.m \
+    src/VideoAmbilightEngine.m \
     -o "${MACOS_DIR}/${APP_NAME}"
 
 # Consistent ad-hoc code sign for macOS Gatekeeper and TCC permissions

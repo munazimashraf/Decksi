@@ -22,6 +22,8 @@ static NSString *const kPrefParticles          = @"Decksi_Particles";
 static NSString *const kPrefParticleCount      = @"Decksi_ParticleCount";
 static NSString *const kPrefShockwaves         = @"Decksi_Shockwaves";
 static NSString *const kPrefNowPlayingHUD      = @"Decksi_NowPlayingHUD";
+static NSString *const kPrefVideoLightSync     = @"Decksi_VideoLightSync";
+static NSString *const kPrefVideoSatBoost      = @"Decksi_VideoSatBoost";
 
 @implementation Settings
 
@@ -75,6 +77,8 @@ static NSString *const kPrefNowPlayingHUD      = @"Decksi_NowPlayingHUD";
     _particleCount = [defs objectForKey:kPrefParticleCount] ? [defs integerForKey:kPrefParticleCount] : 45;
     _shockwavesEnabled = [defs objectForKey:kPrefShockwaves] ? [defs boolForKey:kPrefShockwaves] : YES;
     _nowPlayingHUDEnabled = [defs objectForKey:kPrefNowPlayingHUD] ? [defs boolForKey:kPrefNowPlayingHUD] : YES;
+    _videoLightSyncEnabled = [defs objectForKey:kPrefVideoLightSync] ? [defs boolForKey:kPrefVideoLightSync] : NO;
+    _videoSaturationBoost = [defs objectForKey:kPrefVideoSatBoost] ? [defs doubleForKey:kPrefVideoSatBoost] : 1.35;
 }
 
 - (void)saveSettings {
@@ -101,6 +105,8 @@ static NSString *const kPrefNowPlayingHUD      = @"Decksi_NowPlayingHUD";
     [defs setInteger:_particleCount forKey:kPrefParticleCount];
     [defs setBool:_shockwavesEnabled forKey:kPrefShockwaves];
     [defs setBool:_nowPlayingHUDEnabled forKey:kPrefNowPlayingHUD];
+    [defs setBool:_videoLightSyncEnabled forKey:kPrefVideoLightSync];
+    [defs setDouble:_videoSaturationBoost forKey:kPrefVideoSatBoost];
     [defs synchronize];
 }
 

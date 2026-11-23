@@ -3,6 +3,7 @@
 #import "AudioEngine.h"
 #import "MusicDetector.h"
 #import "LyricsManager.h"
+#import "VideoAmbilightEngine.h"
 #import <QuartzCore/QuartzCore.h>
 
 @interface BorderGlowView () {
@@ -385,12 +386,38 @@
     CGFloat baseAlpha = 0.88;
     CGFloat pulseAlpha = fmin(baseAlpha + beat * 0.12 * react, 1.0) + (sin(_breathPhase) * 0.5 + 0.5) * 0.06;
     
-    // 2. Generate Color Palette Array for GPU Gradients (10 smooth interpolated stops)
+    // 2. Generate Color Palette Array for GPU Gradients
+    [[VideoAmbilightEngine sharedEngine] tick];
+    VideoAmbilightEngine *ve = [VideoAmbilightEngine sharedEngine];
+    BOOL isVideoAmbilight = (s.preset == LightingPresetVideoAmbilight || s.videoLightSyncEnabled);
+    
     NSMutableArray *palette = [NSMutableArray arrayWithCapacity:10];
-    for (int i = 0; i < 10; i++) {
-        CGFloat prog = ((CGFloat)i / 10.0) + _phase;
-        NSColor *col = [self colorAtNormalizedPosition:prog];
-        [palette addObject:(__bridge id)[col colorWithAlphaComponent:pulseAlpha].CGColor];
+    NSMutableArray *paletteTop = [NSMutableArray arrayWithCapacity:8];
+    NSMutableArray *paletteBottom = [NSMutableArray arrayWithCapacity:8];
+    NSMutableArray *paletteLeft = [NSMutableArray arrayWithCapacity:6];
+    NSMutableArray *paletteRight = [NSMutableArray arrayWithCapacity:6];
+    
+    if (isVideoAmbilight) {
+        for (NSColor *c in ve.topEdgeColors) {
+            [paletteTop addObject:(__bridge id)[c colorWithAlphaComponent:pulseAlpha].CGColor];
+        }
+        for (NSColor *c in ve.bottomEdgeColors) {
+            [paletteBottom addObject:(__bridge id)[c colorWithAlphaComponent:pulseAlpha].CGColor];
+        }
+        for (NSColor *c in ve.leftEdgeColors) {
+            [paletteLeft addObject:(__bridge id)[c colorWithAlphaComponent:pulseAlpha].CGColor];
+        }
+        for (NSColor *c in ve.rightEdgeColors) {
+            [paletteRight addObject:(__bridge id)[c colorWithAlphaComponent:pulseAlpha].CGColor];
+        }
+        palette = paletteTop;
+    } else {
+        for (int i = 0; i < 10; i++) {
+            CGFloat prog = ((CGFloat)i / 10.0) + _phase;
+            NSColor *col = [self colorAtNormalizedPosition:prog];
+            [palette addObject:(__bridge id)[col colorWithAlphaComponent:pulseAlpha].CGColor];
+        }
+        paletteTop = paletteBottom = paletteLeft = paletteRight = palette;
     }
     
     // 3. Update GPU Edge Layers (ALWAYS ACTIVE & GLOWING!)
@@ -403,28 +430,28 @@
     if (renderBottom) {
         _bottomGlow.frame = CGRectMake(0, 0, W, totalDepth);
         _bottomMask.frame = CGRectMake(0, 0, W, totalDepth);
-        _bottomGlow.colors = palette;
+        _bottomGlow.colors = paletteBottom;
     }
     
     _topGlow.opacity = renderTop ? 1.0 : 0.0;
     if (renderTop) {
         _topGlow.frame = CGRectMake(0, H - totalDepth, W, totalDepth);
         _topMask.frame = CGRectMake(0, 0, W, totalDepth);
-        _topGlow.colors = palette;
+        _topGlow.colors = paletteTop;
     }
     
     _leftGlow.opacity = renderLeft ? 1.0 : 0.0;
     if (renderLeft) {
         _leftGlow.frame = CGRectMake(0, 0, totalDepth, H);
         _leftMask.frame = CGRectMake(0, 0, totalDepth, H);
-        _leftGlow.colors = palette;
+        _leftGlow.colors = paletteLeft;
     }
     
     _rightGlow.opacity = renderRight ? 1.0 : 0.0;
     if (renderRight) {
         _rightGlow.frame = CGRectMake(W - totalDepth, 0, totalDepth, H);
         _rightMask.frame = CGRectMake(0, 0, totalDepth, H);
-        _rightGlow.colors = palette;
+        _rightGlow.colors = paletteRight;
     }
     
     // 4. Specialized Design Layer (Overlaid on top of ambient glow!)
@@ -1043,6 +1070,15 @@
         }
         case LightingPresetPureHalo:
             return [NSColor colorWithRed:0.96 green:0.98 blue:1.0 alpha:1.0];
+        case LightingPresetVideoAmbilight: {
+            VideoAmbilightEngine *ve = [VideoAmbilightEngine sharedEngine];
+            NSArray<NSColor *> *edges = ve.topEdgeColors;
+            if (edges.count > 0) {
+                NSInteger idx = (NSInteger)floor(pos * edges.count) % edges.count;
+                return edges[idx];
+            }
+            return ve.dominantColor ?: [NSColor colorWithRed:0.0 green:0.8 blue:1.0 alpha:1.0];
+        }
     }
 }
 

@@ -9,7 +9,8 @@ typedef NS_ENUM(NSInteger, LightingPreset) {
     LightingPresetToxicMatrix = 5,
     LightingPresetSynthwave = 6,
     LightingPresetMusicSync = 7,
-    LightingPresetPureHalo = 8
+    LightingPresetPureHalo = 8,
+    LightingPresetVideoAmbilight = 9   // 🎬 Real-time Screen Video Ambilight Sync
 };
 
 typedef NS_ENUM(NSInteger, EdgeLightingMode) {
@@ -71,6 +72,8 @@ typedef NS_ENUM(NSInteger, AudioSourceMode) {
 @property (nonatomic, assign) NSInteger particleCount;
 @property (nonatomic, assign) BOOL shockwavesEnabled;
 @property (nonatomic, assign) BOOL nowPlayingHUDEnabled;
+@property (nonatomic, assign) BOOL videoLightSyncEnabled;       // 🎬 Cinema Ambilight: dynamically match video screen colors
+@property (nonatomic, assign) CGFloat videoSaturationBoost;     // 1.0 - 2.0 (default 1.35)
 
 // Dynamic Track State
 @property (nonatomic, strong) NSArray<NSColor *> *trackColors;
