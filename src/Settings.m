@@ -59,7 +59,7 @@ static NSString *const kPrefVideoSatBoost      = @"Decksi_VideoSatBoost";
     _edgeMode = [defs objectForKey:kPrefEdgeMode] ? [defs integerForKey:kPrefEdgeMode] : EdgeLightingModeAll;
     _borderDesign = [defs objectForKey:kPrefBorderDesign] ? [defs integerForKey:kPrefBorderDesign] : BorderDesignClassicGlow;
     _lyricsStyle = [defs objectForKey:kPrefLyricsStyle] ? [defs integerForKey:kPrefLyricsStyle] : LyricsStyleKaraokeFocus;
-    _audioSource = [defs objectForKey:kPrefAudioSource] ? [defs integerForKey:kPrefAudioSource] : AudioSourceModeSystemInternal;
+    _audioSource = AudioSourceModeSystemInternal; // Always default to Pure Internal System Audio
     
     _blackoutMode = [defs objectForKey:kPrefBlackoutMode] ? [defs boolForKey:kPrefBlackoutMode] : NO;
     _showLyricsInBlackout = [defs objectForKey:kPrefShowLyrics] ? [defs boolForKey:kPrefShowLyrics] : YES;
