@@ -92,7 +92,7 @@
         win.opaque = NO;
         win.backgroundColor = [NSColor clearColor];
         win.hasShadow = NO;
-        win.level = NSFloatingWindowLevel;
+        win.level = NSStatusWindowLevel;
         win.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
                                   NSWindowCollectionBehaviorStationary |
                                   NSWindowCollectionBehaviorIgnoresCycle |

@@ -54,7 +54,7 @@ static NSString *const kPrefVideoSatBoost      = @"Decksi_VideoSatBoost";
 - (void)loadSettings {
     NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
     
-    _enabled = [defs objectForKey:kPrefEnabled] ? [defs boolForKey:kPrefEnabled] : YES;
+    _enabled = YES; // Always ensure active on launch
     _preset = [defs objectForKey:kPrefPreset] ? [defs integerForKey:kPrefPreset] : LightingPresetVideoAmbilight;
     _edgeMode = [defs objectForKey:kPrefEdgeMode] ? [defs integerForKey:kPrefEdgeMode] : EdgeLightingModeAll;
     _borderDesign = [defs objectForKey:kPrefBorderDesign] ? [defs integerForKey:kPrefBorderDesign] : BorderDesignClassicGlow;

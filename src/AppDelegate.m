@@ -15,8 +15,8 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     NSLog(@"Initializing Decksi for Mac (Music-Reactive RGB Lighting & Lyrics Blackout)...");
     
-    // Accessory app: lives purely in macOS Menu Bar
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    // Regular app: visible in Dock & Menu Bar with Control Panel
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     
     // 1. Load Settings
     [[Settings sharedSettings] loadSettings];
@@ -35,7 +35,15 @@
     [AudioEngine sharedEngine].delegate = self;
     [[AudioEngine sharedEngine] start];
     
+    // Show Control Panel on launch so user has immediate visual confirmation!
+    [[MenuBarController sharedController] showPreferencesWindow];
+    
     NSLog(@"Decksi successfully started! RGB Screen Border is now live.");
+}
+
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
+    [[MenuBarController sharedController] showPreferencesWindow];
+    return YES;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
